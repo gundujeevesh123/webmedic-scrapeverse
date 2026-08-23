@@ -448,7 +448,7 @@ Run all 61 tests with `pytest -q` in ~18 seconds.
 | Dashboard makes repair visually obvious                    | `frontend/index.html` (3 views)                   |
 | Public reproducible repo                                   | This file lives at the top of it                  |
 | README complete                                            | `README.md` (problem, arch, quick-start, benchmark, AI disclosure) |
-| Demo starts with failure, ends with recovery               | `demo/demo_script.md` beats 1–7                   |
+| Demo starts with failure, ends with recovery               | Six-step guided walkthrough in `frontend/index.html` (Register → Healthy → Break → Heal → Inspect → Rollback) |
 | AI-use disclosure                                          | `README.md` §"AI-use disclosure"                  |
 | Every submitted component explainable                      | This document                                     |
 

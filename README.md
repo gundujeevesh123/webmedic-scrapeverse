@@ -166,9 +166,12 @@ Design decisions: [`docs/adr/`](docs/adr/).
     │   ├── unit/            Extractor, validator, healer, acquisition tests
     │   └── integration/     Deploy, API, benchmark, end-to-end tests
     ├── benchmark/           Controlled-breakage harness + latest results
-    ├── docs/                Architecture, repair engine, ADRs
-    ├── demo/                Screenshots
+    ├── docs/                Architecture, repair engine, ADRs, submission checklist
+    ├── outputs/             Dashboard screenshots (hero, healed, repair drill-down)
+    ├── scripts/             Manual repair demonstration
+    ├── examples/            Sample structured output (Product schema)
     ├── requirements.txt
+    ├── pyproject.toml
     └── README.md            (this file)
 
 ---

@@ -11,16 +11,16 @@ judge can reproduce every green box without asking a question.
 | 2 | Bright Data Scraper Studio meaningfully integrated | ✅ | `backend/acquisition/brightdata.py`, factory routes via `ACQUISITION_PROVIDER=brightdata` |
 | 3 | Clear schema + structured output | ✅ | `backend/scraper/schema.py` (Pydantic `Product`), `examples/output.json` |
 | 4 | Data-quality validation deterministic + measurable | ✅ | `backend/validator/rules.py` (11 rules), `backend/validator/health.py` |
-| 5 | Website changes trigger automatic repair | ✅ | `backend/versioning/deploy.py::attempt_repair` — see `demo/repair_demonstration.txt` |
+| 5 | Website changes trigger automatic repair | ✅ | `backend/versioning/deploy.py::attempt_repair` — reproducible via `python -m backend.api.demo_cli` |
 | 6 | Multiple candidates generated | ✅ | 6 sources in `backend/healer/candidates.py` |
 | 7 | Candidates tested before deployment | ✅ | `_test_field_candidate()` in `backend/healer/repair.py` |
 | 8 | Scraper versioning + rollback | ✅ | `scraper_versions` table + `deploy.rollback_to()` |
 | 9 | Golden dataset | ✅ | `tests/fixtures/golden_dataset.json` (20 records) |
 | 10 | Controlled benchmark of recovery | ✅ | `benchmark/harness.py` + `benchmark/METHODOLOGY.md` |
-| 11 | Dashboard visualizes repair | ✅ | `frontend/index.html`, screenshots in `demo/screenshots/` |
+| 11 | Dashboard visualizes repair | ✅ | `frontend/index.html`, screenshots in `outputs/` (hero, healed, drill-down) |
 | 12 | Public reproducible repository | ✅ | This repo + `pytest -q` reproduces every result |
 | 13 | README complete | ✅ | `README.md` — problem/solution/arch/quick-start/BrightData/benchmark/AI-disclosure |
-| 14 | Demo starts with failure, ends with recovery | ✅ | `demo/demo_script.md` (7 beats) + `demo/repair_demonstration.txt` |
+| 14 | Demo starts with failure, ends with recovery | ✅ | Six-step guided walkthrough in `frontend/index.html`; also `python -m backend.api.demo_cli` for terminal replay |
 | 15 | AI-use disclosure | ✅ | `README.md §"AI-use disclosure"` + `docs/LIMITATIONS.md` |
 | 16 | Every component explainable | ✅ | `docs/ARCHITECTURE.md`, `docs/repair-engine.md`, `docs/adr/` |
 
@@ -46,10 +46,10 @@ judge can reproduce every green box without asking a question.
 - [x] **README** — complete per guide §19 checklist
 - [x] **Architecture documentation** — `docs/ARCHITECTURE.md` + `docs/repair-engine.md` + ADR-0001
 - [x] **Example output** — `examples/output.json`
-- [x] **Failure simulation instructions** — README §"Failure simulation" + `demo/demo_script.md`
+- [x] **Failure simulation instructions** — README §"Failure simulation" + guided walkthrough in dashboard
 - [x] **AI-use disclosure** — README §"AI-use disclosure"
 - [x] **Limitations** — `docs/LIMITATIONS.md`
-- [x] **Demo workflow** — `demo/demo_script.md` (7 beats) + `python -m backend.api.demo_cli`
+- [x] **Demo workflow** — Six-step guided walkthrough in `frontend/index.html` + `python -m backend.api.demo_cli` for terminal replay
 - [x] **Code understandable by participant** — every module has a docstring; every public function has a purpose line; no clever tricks
 
 ## Live audit evidence (this session)
