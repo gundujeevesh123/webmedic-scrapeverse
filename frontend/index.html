@@ -1,0 +1,1182 @@
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <title>WebMedic — self-healing web scrapers</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="WebMedic — self-healing web scrapers that detect DOM drift, generate candidate selectors, and only promote fixes gated by evidence.">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:title" content="WebMedic — self-healing web scrapers">
+  <meta property="og:description" content="Scrapers that repair themselves when the page changes. AI proposes; evidence decides.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%2310b981' d='M12 2 3 7v6c0 5 4 8 9 9 5-1 9-4 9-9V7l-9-5Z'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    /* Design tokens — foundation layer (see docs/generated/03_tokens_and_styles.css).
+       Coexists with Tailwind: utility classes still work; token vars are
+       available for any hand-written rule that wants system consistency. */
+    :root {
+      color-scheme: dark;
+      /* Grey scale */
+      --grey-950: #0B0F17;
+      --grey-900: #10151F;
+      --grey-800: #1A2130;
+      --grey-700: #2A3446;
+      --grey-500: #6B7A90;
+      --grey-300: #C7D0DE;
+      --grey-100: #F3F5F9;
+      /* Emerald accent */
+      --accent-500: #10B981;
+      --accent-600: #059669;
+      --accent-100: #DCFCE7;
+      /* Status */
+      --danger-500: #EF4444;
+      --warn-500:   #F59E0B;
+      --info-500:   #3B82F6;
+      /* Typography ramp */
+      --text-xs: .75rem; --text-sm: .875rem; --text-base: 1rem;
+      --text-lg: 1.125rem; --text-xl: 1.5rem; --text-2xl: 2rem; --text-3xl: 3rem;
+      /* Spacing (4 px grid) */
+      --sp-1: .25rem; --sp-2: .5rem; --sp-3: .75rem; --sp-4: 1rem;
+      --sp-6: 1.5rem; --sp-8: 2rem; --sp-12: 3rem; --sp-16: 4rem;
+      /* Radius + elevation */
+      --r-sm: 6px; --r-md: 10px; --r-lg: 16px;
+      --shadow-1: 0 1px 2px rgba(0,0,0,.35);
+      --shadow-2: 0 4px 16px rgba(0,0,0,.45);
+      --shadow-3: 0 24px 48px -12px rgba(0,0,0,.55);
+      /* Motion */
+      --dur-fast: 120ms; --dur-med: 240ms; --dur-slow: 480ms;
+      --ease-out: cubic-bezier(.16,1,.3,1);
+      --ease-inout: cubic-bezier(.7,0,.3,1);
+    }
+    /* Skip link — first focusable, visually hidden until focused */
+    .skip-link {
+      position: absolute; left: -9999px; top: 0;
+      background: var(--accent-500); color: #052E1A;
+      padding: 8px 12px; border-radius: var(--r-sm);
+      font-weight: 600; z-index: 500;
+    }
+    .skip-link:focus { left: 8px; top: 8px; outline: 2px solid #fff; outline-offset: 2px; }
+    /* Universal keyboard focus ring */
+    :focus-visible {
+      outline: 2px solid var(--accent-500);
+      outline-offset: 2px;
+      border-radius: var(--r-sm);
+    }
+    /* Reduced-motion guard — respects OS "less motion" preference */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+    html, body {
+      background: #06080f;
+      color: #e2e8f0;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-feature-settings: "cv02","cv03","cv04","cv11";
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: -0.005em;
+    }
+    body { min-height: 100vh; }
+    ::selection { background: rgba(16,185,129,0.35); color: #fff; }
+
+    /* Cards */
+    .card {
+      background: #0f1524;
+      border: 1px solid rgba(148,163,184,0.10);
+      border-radius: 14px;
+    }
+    .card-hover:hover { border-color: rgba(52,211,153,0.35); }
+
+    /* Section wrappers */
+    section { position: relative; }
+
+    /* Hero background */
+    .hero-bg {
+      background:
+        radial-gradient(ellipse 70% 50% at 50% 0%, rgba(16,185,129,0.10), transparent 60%),
+        radial-gradient(ellipse 40% 30% at 90% 20%, rgba(139,92,246,0.06), transparent),
+        linear-gradient(180deg, #060812 0%, #060812 100%);
+    }
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(148,163,184,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(148,163,184,0.05) 1px, transparent 1px);
+      background-size: 32px 32px;
+      mask-image: radial-gradient(ellipse 60% 40% at 50% 40%, black 30%, transparent 100%);
+    }
+
+    /* Pills */
+    .pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .pill-healthy { background: rgba(16,185,129,0.12); color: #34d399; border: 1px solid rgba(16,185,129,0.25); }
+    .pill-warning { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25); }
+    .pill-repair  { background: rgba(239,68,68,0.12);  color: #f87171; border: 1px solid rgba(239,68,68,0.25); }
+    .pill-neutral { background: rgba(148,163,184,0.08); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.15); }
+    .pill-shadow  { background: rgba(59,130,246,0.12); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
+    .pill-info    { background: rgba(139,92,246,0.12); color: #a78bfa; border: 1px solid rgba(139,92,246,0.25); }
+
+    /* Buttons */
+    button, .btn { transition: all 0.15s ease-out; cursor: pointer; font-family: inherit; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 18px; border-radius: 10px; font-size: 14px; font-weight: 600; }
+    .btn-primary {
+      background: linear-gradient(180deg, #10b981, #059669);
+      color: white;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 24px -6px rgba(16,185,129,0.5);
+    }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255,255,255,0.2) inset, 0 12px 28px -6px rgba(16,185,129,0.6); }
+    .btn-warning { background: linear-gradient(180deg, #f59e0b, #d97706); color: white; box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 24px -6px rgba(245,158,11,0.5); }
+    .btn-warning:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-danger  { background: linear-gradient(180deg, #ef4444, #dc2626); color: white; box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 24px -6px rgba(239,68,68,0.5); }
+    .btn-danger:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-purple  { background: linear-gradient(180deg, #8b5cf6, #7c3aed); color: white; box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 24px -6px rgba(139,92,246,0.5); }
+    .btn-purple:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-blue    { background: linear-gradient(180deg, #3b82f6, #2563eb); color: white; box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 24px -6px rgba(59,130,246,0.5); }
+    .btn-blue:hover:not(:disabled) { transform: translateY(-1px); }
+    .btn-ghost   { background: rgba(148,163,184,0.06); color: #cbd5e1; border: 1px solid rgba(148,163,184,0.12); }
+    .btn-ghost:hover:not(:disabled) { background: rgba(148,163,184,0.12); color: white; border-color: rgba(148,163,184,0.25); }
+    .btn-lg { padding: 14px 26px; font-size: 15px; border-radius: 12px; }
+    .btn-xl { padding: 18px 34px; font-size: 16px; border-radius: 14px; font-weight: 700; }
+
+    .kbd {
+      display: inline-block; padding: 2px 6px;
+      font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      color: #94a3b8;
+      background: rgba(148,163,184,0.06); border: 1px solid rgba(148,163,184,0.15);
+      border-radius: 4px;
+    }
+
+    /* Step indicator */
+    .step-dot {
+      width: 32px; height: 32px; border-radius: 999px;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700;
+      background: rgba(148,163,184,0.06); color: #64748b;
+      border: 1px solid rgba(148,163,184,0.15);
+      transition: all 0.3s ease;
+      flex-shrink: 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .step-dot.done   { background: #10b981; color: white; border-color: #10b981; box-shadow: 0 0 20px rgba(16,185,129,0.4); }
+    .step-dot.active { background: rgba(16,185,129,0.08); color: #34d399; border-color: #34d399; box-shadow: 0 0 0 3px rgba(16,185,129,0.15), 0 0 24px rgba(52,211,153,0.35); }
+    .step-line { height: 2px; flex: 1; background: rgba(148,163,184,0.12); transition: background 0.4s ease; }
+    .step-line.done { background: #10b981; }
+
+    /* Metric cards */
+    .metric-card { position: relative; overflow: hidden; }
+    .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.10em; color: #64748b; font-weight: 700; }
+    .metric-value { font-size: 40px; font-weight: 800; line-height: 1.0; letter-spacing: -0.025em; margin-top: 8px; color: #f8fafc; font-variant-numeric: tabular-nums; }
+    .metric-sub { font-size: 12px; color: #94a3b8; margin-top: 6px; }
+
+    /* Activity feed */
+    .activity-item {
+      display: flex; gap: 10px; padding: 8px 0;
+      border-bottom: 1px solid rgba(148,163,184,0.06);
+      animation: fadeIn 0.3s ease-out;
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      margin-top: 8px; flex-shrink: 0;
+      box-shadow: 0 0 8px currentColor;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* Toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px;
+      background: #0f1524; border: 1px solid rgba(148,163,184,0.15);
+      padding: 14px 20px; border-radius: 12px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+      max-width: 420px; z-index: 200;
+      animation: slideUp 0.25s ease-out;
+      font-size: 13px;
+    }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .toast.toast-success { border-left: 3px solid #10b981; }
+    .toast.toast-warning { border-left: 3px solid #f59e0b; }
+    .toast.toast-error   { border-left: 3px solid #ef4444; }
+
+    /* Sparkline */
+    .sparkline { stroke: #34d399; fill: none; stroke-width: 1.5; stroke-linecap: round; }
+
+    /* Command palette */
+    .cmd-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); z-index: 300; display: flex; align-items: start; justify-content: center; padding-top: 100px; }
+    .cmd-overlay.hidden { display: none; }
+    .cmd-box { background: #0f1524; border-radius: 14px; width: 100%; max-width: 560px; box-shadow: 0 40px 80px rgba(0,0,0,0.7); border: 1px solid rgba(148,163,184,0.15); overflow: hidden; animation: slideUp 0.15s ease-out; }
+    .cmd-item { padding: 10px 16px; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+    .cmd-item:hover, .cmd-item.selected { background: rgba(16,185,129,0.08); color: #34d399; }
+
+    details > summary { list-style: none; cursor: pointer; }
+    details > summary::-webkit-details-marker { display: none; }
+    details[open] .chev { transform: rotate(90deg); }
+    .chev { transition: transform 0.2s ease; display: inline-block; }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.15); border-radius: 5px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(148,163,184,0.25); }
+
+    code, .mono { font-family: 'JetBrains Mono', monospace; }
+    pre { white-space: pre-wrap; word-break: break-all; }
+
+    /* Nav */
+    .nav-link { color: #94a3b8; font-size: 13px; font-weight: 500; padding: 6px 12px; border-radius: 6px; transition: color 0.15s, background 0.15s; }
+    .nav-link:hover { color: white; background: rgba(148,163,184,0.06); }
+  </style>
+</head>
+<body>
+
+<a href="#main" class="skip-link">Skip to main content</a>
+
+<!-- Inline SVG icon symbols -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-logo" viewBox="0 0 24 24"><path d="M12 2L2 20h20L12 2z" fill="currentColor"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+    <symbol id="i-heal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-rocket" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 00-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 012-3.95A12.88 12.88 0 0122 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 01-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .296A12 12 0 000 12.296c0 5.31 3.435 9.79 8.205 11.385.6.113.82-.256.82-.577 0-.286-.011-1.24-.017-2.253-3.336.724-4.042-1.416-4.042-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.744.082-.729.082-.729 1.205.085 1.838 1.238 1.838 1.238 1.07 1.835 2.807 1.305 3.492.998.108-.776.418-1.305.762-1.605-2.665-.303-5.467-1.334-5.467-5.933 0-1.311.469-2.383 1.235-3.222-.124-.303-.535-1.524.117-3.176 0 0 1.008-.323 3.3 1.23a11.49 11.49 0 016 0c2.29-1.553 3.297-1.23 3.297-1.23.653 1.652.242 2.873.118 3.176.77.839 1.234 1.911 1.234 3.222 0 4.61-2.807 5.625-5.479 5.922.43.372.813 1.1.813 2.222 0 1.606-.014 2.9-.014 3.293 0 .323.216.694.825.576A12 12 0 0024 12.296C24 5.665 18.627.296 12 .296z"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20V2H6.5A2.5 2.5 0 004 4.5v15z"/><path d="M4 19.5A2.5 2.5 0 016.5 22H20"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></symbol>
+    <symbol id="i-cmd" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 3a3 3 0 00-3 3v12a3 3 0 003 3 3 3 0 003-3 3 3 0 00-3-3H6a3 3 0 00-3 3 3 3 0 003 3 3 3 0 003-3V6a3 3 0 00-3-3 3 3 0 00-3 3 3 3 0 003 3h12a3 3 0 003-3 3 3 0 00-3-3z"/></symbol>
+  </defs>
+</svg>
+
+<!-- ==================== NAV ==================== -->
+<nav class="sticky top-0 z-40 border-b border-white/5 bg-[#06080f]/85 backdrop-blur-xl">
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="text-emerald-400"><svg width="24" height="24"><use href="#i-logo"/></svg></div>
+      <span class="text-base font-bold text-white tracking-tight">WebMedic</span>
+      <span class="pill pill-info hidden sm:inline-flex">v0.1.0</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <a href="#demo" class="nav-link">Demo</a>
+      <a href="#how" class="nav-link">How it heals</a>
+      <a href="#benchmark" class="nav-link hidden md:inline-block">Benchmark</a>
+      <a href="/docs" target="_blank" class="nav-link">API</a>
+      <a href="https://github.com" target="_blank" class="nav-link inline-flex items-center gap-1"><svg width="14" height="14"><use href="#i-github"/></svg></a>
+      <button id="btnCommandPalette" class="ml-2 nav-link inline-flex items-center gap-1.5" title="Command palette">
+        <span class="kbd">⌘K</span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- ==================== HERO ==================== -->
+<main id="main"><section class="hero-bg pt-16 pb-24 relative overflow-hidden">
+  <div class="absolute inset-0 grid-bg pointer-events-none"></div>
+  <div class="relative max-w-4xl mx-auto px-6 text-center">
+    <div class="inline-flex items-center gap-2 pill pill-info mb-6">
+      <span class="w-1.5 h-1.5 rounded-full bg-violet-400"></span>
+      AI proposes. Evidence decides.
+    </div>
+    <h1 class="text-4xl md:text-6xl font-black text-white tracking-tight leading-[1.05]">
+      Web scrapers that <span class="text-emerald-400">heal themselves</span>
+      <br class="hidden md:inline"> when the website changes.
+    </h1>
+    <p class="mt-6 text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+      WebMedic detects extraction breakage, generates multiple repair candidates,
+      scores them against a golden dataset, and safely deploys the winner —
+      with versioning and one-click rollback.
+    </p>
+    <div class="mt-10 flex flex-wrap items-center justify-center gap-3">
+      <a href="#demo" class="btn btn-primary btn-xl">
+        <svg width="20" height="20"><use href="#i-play"/></svg>
+        Start 60-second demo
+      </a>
+      <a href="#how" class="btn btn-ghost btn-lg">See how it works
+        <svg width="16" height="16"><use href="#i-arrow-right"/></svg>
+      </a>
+    </div>
+    <!-- Trust row -->
+    <div class="mt-14 grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto text-left">
+      <div class="border-l-2 border-emerald-500/40 pl-4">
+        <div class="text-3xl font-bold text-white tabular-nums">100<span class="text-slate-500 text-lg">%</span></div>
+        <div class="text-xs text-slate-500 mt-1">repair success rate</div>
+      </div>
+      <div class="border-l-2 border-emerald-500/40 pl-4">
+        <div class="text-3xl font-bold text-white tabular-nums">0</div>
+        <div class="text-xs text-slate-500 mt-1">false alarms across 11 fixtures</div>
+      </div>
+      <div class="border-l-2 border-emerald-500/40 pl-4">
+        <div class="text-3xl font-bold text-white tabular-nums">~400<span class="text-slate-500 text-lg">ms</span></div>
+        <div class="text-xs text-slate-500 mt-1">mean time to repair</div>
+      </div>
+      <div class="border-l-2 border-emerald-500/40 pl-4">
+        <div class="text-3xl font-bold text-white tabular-nums">169</div>
+        <div class="text-xs text-slate-500 mt-1">tests, all green</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== HOW IT HEALS ==================== -->
+<section id="how" class="py-24 border-t border-white/5">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="text-center mb-16">
+      <div class="text-xs text-emerald-400 uppercase tracking-widest font-bold mb-2">The self-heal loop</div>
+      <h2 class="text-3xl md:text-4xl font-bold text-white tracking-tight">Three deterministic stages. Zero silent failures.</h2>
+      <p class="mt-3 text-slate-400 max-w-2xl mx-auto">Every scraper run flows through the same three stages. Nothing is promoted without evidence.</p>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+      <!-- 1. Detect -->
+      <div class="card p-8 card-hover">
+        <div class="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-6">
+          <svg width="26" height="26"><use href="#i-alert"/></svg>
+        </div>
+        <div class="text-xs text-slate-500 font-mono mb-1">01 / DETECT</div>
+        <h3 class="text-lg font-bold text-white mb-3">Health score collapses</h3>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          8 deterministic rules score every record — required fields, types, plausible values, URL validity, semantic anomalies. A single number in [0, 1] with three status buckets. Cosmetic HTML changes never trigger alarms; only real data degradation does.
+        </p>
+      </div>
+      <!-- 2. Repair -->
+      <div class="card p-8 card-hover">
+        <div class="w-14 h-14 rounded-2xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400 mb-6">
+          <svg width="26" height="26"><use href="#i-heal"/></svg>
+        </div>
+        <div class="text-xs text-slate-500 font-mono mb-1">02 / REPAIR</div>
+        <h3 class="text-lg font-bold text-white mb-3">Candidates generated, tested, scored</h3>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          Six candidate sources per broken field: stable attributes, class synonyms, tag+role heuristics, text anchors, positional fallbacks, historical winners. Each candidate is executed against the actual HTML and scored: 0.25·Schema + 0.25·Completeness + 0.20·Type + 0.15·Similarity + 0.15·Historical.
+        </p>
+      </div>
+      <!-- 3. Deploy -->
+      <div class="card p-8 card-hover">
+        <div class="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 mb-6">
+          <svg width="26" height="26"><use href="#i-rocket"/></svg>
+        </div>
+        <div class="text-xs text-slate-500 font-mono mb-1">03 / DEPLOY</div>
+        <h3 class="text-lg font-bold text-white mb-3">Gated promotion, versioned rollback</h3>
+        <p class="text-sm text-slate-400 leading-relaxed">
+          Three-tier gate: reject / shadow / promote. Even a high-scoring candidate must pass a shadow run before it reaches production. Every strategy is versioned in SQLite. Rollback is one database write, fully audited in <code class="text-emerald-300">repair_events</code>.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== INPUT → OUTPUT ==================== -->
+<section class="py-24 border-t border-white/5">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="text-center mb-12">
+      <div class="text-xs text-emerald-400 uppercase tracking-widest font-bold mb-2">Input · Output</div>
+      <h2 class="text-3xl md:text-4xl font-bold text-white tracking-tight">Messy HTML in. Structured data out.</h2>
+      <p class="mt-3 text-slate-400">Same product page. Two rendered layouts. The scraper repairs itself between them.</p>
+    </div>
+
+    <div class="grid md:grid-cols-2 gap-4 items-stretch">
+      <!-- Input: broken HTML -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <svg width="14" height="14" class="text-slate-500"><use href="#i-code"/></svg>
+            <span class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Rendered HTML fixture</span>
+          </div>
+          <span class="pill pill-warning">v3_dataattr (breaking layout)</span>
+        </div>
+<pre class="text-[11px] text-slate-400 leading-relaxed mono overflow-x-auto"><span class="text-slate-600">&lt;article class="product-card" data-product-id="MK-1001"&gt;
+  &lt;a href="/p/MK-1001"&gt;
+    &lt;h3 </span><span class="text-amber-300">data-testid="title"</span><span class="text-slate-600">&gt;Aurora Wireless Headphones&lt;/h3&gt;
+  &lt;/a&gt;
+  &lt;span </span><span class="text-amber-300">data-testid="price"</span><span class="text-slate-600">&gt;₹8,999.00&lt;/span&gt;
+  &lt;span </span><span class="text-amber-300">data-testid="currency"</span><span class="text-slate-600">&gt;INR&lt;/span&gt;
+  &lt;span </span><span class="text-amber-300">data-testid="rating"</span><span class="text-slate-600">&gt;4.5&lt;/span&gt;
+  &lt;div </span><span class="text-amber-300">data-testid="availability"</span><span class="text-slate-600">&gt;In Stock&lt;/div&gt;
+&lt;/article&gt;</span></pre>
+      </div>
+
+      <!-- Output: structured JSON -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <svg width="14" height="14" class="text-emerald-400"><use href="#i-check"/></svg>
+            <span class="text-xs text-slate-500 uppercase tracking-wide font-semibold">Structured record</span>
+          </div>
+          <span class="pill pill-healthy">healed to v2 · 92.5% confidence</span>
+        </div>
+<pre class="text-[11px] text-slate-300 leading-relaxed mono overflow-x-auto"><span class="text-slate-500">{</span>
+  <span class="text-emerald-300">"product_id"</span>:    <span class="text-amber-300">"MK-1001"</span>,
+  <span class="text-emerald-300">"product_name"</span>:  <span class="text-amber-300">"Aurora Wireless Headphones"</span>,
+  <span class="text-emerald-300">"price"</span>:         <span class="text-blue-300">8999.0</span>,
+  <span class="text-emerald-300">"currency"</span>:      <span class="text-amber-300">"INR"</span>,
+  <span class="text-emerald-300">"rating"</span>:        <span class="text-blue-300">4.5</span>,
+  <span class="text-emerald-300">"review_count"</span>:  <span class="text-blue-300">1284</span>,
+  <span class="text-emerald-300">"availability"</span>:  <span class="text-amber-300">"In Stock"</span>,
+  <span class="text-emerald-300">"product_url"</span>:   <span class="text-amber-300">"http://…/p/MK-1001"</span>,
+  <span class="text-emerald-300">"image_url"</span>:     <span class="text-amber-300">"http://…/img/MK-1001.jpg"</span>
+<span class="text-slate-500">}</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== LIVE DEMO ==================== -->
+<section id="demo" class="py-24 border-t border-white/5 bg-black/20">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="text-center mb-12">
+      <div class="text-xs text-emerald-400 uppercase tracking-widest font-bold mb-2">Try it now</div>
+      <h2 class="text-3xl md:text-4xl font-bold text-white tracking-tight">The 60-second guided demo</h2>
+      <p class="mt-3 text-slate-400">Each button below tells you exactly what will happen when you click it.</p>
+    </div>
+
+    <!-- Metrics -->
+    <div id="metricsGrid" class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8"></div>
+
+    <div class="grid lg:grid-cols-3 gap-6">
+      <!-- Guided walkthrough (2/3) -->
+      <div class="card p-8 lg:col-span-2">
+        <div class="flex items-center justify-between mb-6">
+          <div class="text-xs text-slate-500 uppercase tracking-widest font-bold">Guided walkthrough</div>
+          <div class="text-xs text-slate-500 font-mono">STEP <span id="stepCounter">1</span>/6</div>
+        </div>
+
+        <!-- Step indicator -->
+        <div class="flex items-center gap-2 mb-8">
+          <div id="dot-1" class="step-dot active">1</div>
+          <div id="line-1" class="step-line"></div>
+          <div id="dot-2" class="step-dot">2</div>
+          <div id="line-2" class="step-line"></div>
+          <div id="dot-3" class="step-dot">3</div>
+          <div id="line-3" class="step-line"></div>
+          <div id="dot-4" class="step-dot">4</div>
+          <div id="line-4" class="step-line"></div>
+          <div id="dot-5" class="step-dot">5</div>
+          <div id="line-5" class="step-line"></div>
+          <div id="dot-6" class="step-dot">6</div>
+        </div>
+
+        <div id="stepContent" class="min-h-[180px] py-2"></div>
+
+        <div class="mt-8 pt-6 border-t border-white/5 flex items-center justify-between">
+          <button id="btnReset" class="btn btn-ghost text-xs">
+            <svg width="12" height="12"><use href="#i-rotate"/></svg>
+            Reset demo
+          </button>
+          <div class="text-[11px] text-slate-500">Or press <span class="kbd">⌘K</span> to open commands</div>
+        </div>
+      </div>
+
+      <!-- Activity feed (1/3) -->
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-xs text-slate-500 uppercase tracking-widest font-bold">Live activity</div>
+          <div class="flex items-center gap-1.5 text-xs text-slate-500">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> live
+          </div>
+        </div>
+        <div id="activityFeed" class="space-y-0 max-h-[420px] overflow-y-auto pr-2">
+          <div class="text-xs text-slate-600 text-center py-12">Activity will appear here as you click through the demo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== RECORDS + REPAIRS ==================== -->
+<section class="py-24 border-t border-white/5">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="grid lg:grid-cols-3 gap-6">
+
+      <div class="lg:col-span-2 space-y-6">
+        <!-- Records preview -->
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-white">Extracted records</h3>
+              <div id="previewCount" class="text-[11px] text-slate-500 mt-1">Register the scraper to see records</div>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="text-[10px] text-slate-500 uppercase tracking-wide border-b border-white/5">
+                  <th class="text-left py-2 font-semibold">Product</th>
+                  <th class="text-right px-2 font-semibold">Price</th>
+                  <th class="text-right px-2 font-semibold">Rating</th>
+                  <th class="text-right px-2 font-semibold">Reviews</th>
+                  <th class="text-left px-2 font-semibold">Stock</th>
+                </tr>
+              </thead>
+              <tbody id="previewBody">
+                <tr><td colspan="5" class="py-12 text-center text-slate-600 text-xs">Waiting for extraction…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Repair history -->
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h3 class="text-sm font-bold text-white">Repair history</h3>
+              <div class="text-[11px] text-slate-500 mt-1">Click any event to expand the full candidate table</div>
+            </div>
+          </div>
+          <div id="repairsList" class="space-y-3">
+            <div class="text-center py-8 text-xs text-slate-600">No repairs yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-6">
+        <!-- Recent runs -->
+        <div class="card p-6">
+          <h3 class="text-sm font-bold text-white mb-4">Recent runs</h3>
+          <div id="runsList" class="space-y-2">
+            <div class="text-xs text-slate-500 text-center py-4">—</div>
+          </div>
+        </div>
+
+        <!-- Version timeline -->
+        <div class="card p-6">
+          <h3 class="text-sm font-bold text-white mb-4">Versions</h3>
+          <ol id="versionsList" class="space-y-3 text-xs">
+            <li class="text-slate-500">No versions yet.</li>
+          </ol>
+        </div>
+
+        <!-- Expert controls -->
+        <details class="card p-4">
+          <summary class="flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-white">
+            <span class="chev text-xs">▶</span>
+            Expert controls
+          </summary>
+          <div class="mt-4 space-y-3 text-xs">
+            <div class="flex items-center gap-2">
+              <label class="text-slate-400 w-20">Fixture:</label>
+              <select id="fixtureSelect" class="flex-1 bg-black/40 text-white px-2 py-1.5 rounded border border-white/10"></select>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button id="btnRun" class="btn btn-ghost text-xs">Run</button>
+              <button id="btnSwitch" class="btn btn-ghost text-xs">Switch</button>
+              <button id="btnRollback" class="btn btn-ghost text-xs">Rollback</button>
+              <button id="btnRefresh" class="btn btn-ghost text-xs">Refresh</button>
+            </div>
+            <details class="mt-3">
+              <summary class="text-slate-400 text-[11px] hover:text-white cursor-pointer">Active strategy JSON</summary>
+              <pre id="strategyBox" class="text-[11px] text-emerald-300 bg-black/40 p-3 rounded-lg mt-2 max-h-56 overflow-y-auto mono">Not registered yet.</pre>
+            </details>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer id="benchmark" class="border-t border-white/5 py-16 bg-black/20">
+  <div class="max-w-6xl mx-auto px-6">
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+      <div class="col-span-2">
+        <div class="flex items-center gap-2 mb-3">
+          <div class="text-emerald-400"><svg width="20" height="20"><use href="#i-logo"/></svg></div>
+          <span class="text-base font-bold text-white">WebMedic</span>
+        </div>
+        <p class="text-xs text-slate-500 leading-relaxed max-w-sm">Self-healing web scraper built for the ScrapeVerse / Bright Data hackathon. Synthetic demo storefront; no real websites are scraped by tests or demos.</p>
+      </div>
+      <div>
+        <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Product</div>
+        <ul class="space-y-2 text-xs">
+          <li><a href="#how" class="text-slate-400 hover:text-white">How it heals</a></li>
+          <li><a href="#demo" class="text-slate-400 hover:text-white">Live demo</a></li>
+          <li><a href="/docs" class="text-slate-400 hover:text-white">API reference</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Docs</div>
+        <ul class="space-y-2 text-xs">
+          <li><a href="#" class="text-slate-400 hover:text-white">Architecture</a></li>
+          <li><a href="#" class="text-slate-400 hover:text-white">Methodology</a></li>
+          <li><a href="#" class="text-slate-400 hover:text-white">Limitations</a></li>
+        </ul>
+      </div>
+      <div>
+        <div class="text-[10px] text-slate-500 uppercase tracking-widest font-bold mb-3">Numbers</div>
+        <ul class="space-y-2 text-xs">
+          <li class="text-slate-400">11 / 11 healthy</li>
+          <li class="text-slate-400">4 / 4 repairs</li>
+          <li class="text-slate-400">P/R/F1 = 1.00</li>
+        </ul>
+      </div>
+    </div>
+    <div class="pt-8 border-t border-white/5 text-center text-xs text-slate-600">
+      MetroKart is a synthetic demo storefront. <span class="text-slate-500">AI proposes. Evidence decides.</span>
+    </div>
+  </div>
+</footer>
+</main>
+
+<!-- Toast -->
+<div id="toast" class="toast hidden"></div>
+
+<!-- Command palette -->
+<div id="cmdPalette" class="cmd-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="cmdTitle">
+  <h2 id="cmdTitle" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">Command palette</h2>
+  <div class="cmd-box">
+    <div class="flex items-center gap-2 px-4 py-3 border-b border-white/5">
+      <svg width="16" height="16" class="text-slate-500" aria-hidden="true"><use href="#i-search"/></svg>
+      <input id="cmdInput" type="text" placeholder="Type a command…" aria-label="Search commands" class="flex-1 bg-transparent outline-none text-sm text-white placeholder:text-slate-500"/>
+      <span class="kbd" aria-hidden="true">ESC</span>
+    </div>
+    <div id="cmdList" role="listbox" class="py-1 max-h-80 overflow-y-auto text-sm"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// State + helpers
+// ============================================================================
+const $ = (id) => document.getElementById(id);
+const state = {
+  step: 1,
+  scraperId: null,
+  fixtures: [],
+  lastFixture: "v1_healthy",
+  brokeFixture: "v3_dataattr",
+  activityEvents: [],
+};
+const fmtWhen = (t) => t ? new Date(t * 1000).toLocaleTimeString([], {hour12: false}) : "—";
+
+function toast(msg, kind = "success") {
+  const el = $("toast");
+  el.className = `toast toast-${kind}`;
+  el.classList.remove("hidden");
+  const icons = { success: "i-check", warning: "i-alert", error: "i-x" };
+  const colors = { success: "text-emerald-400", warning: "text-amber-400", error: "text-red-400" };
+  el.innerHTML = `<div class="flex items-start gap-3">
+    <svg width="16" height="16" class="${colors[kind]} mt-0.5 shrink-0"><use href="#${icons[kind]}"/></svg>
+    <div class="text-slate-200">${msg}</div>
+  </div>`;
+  clearTimeout(state._toastTimer);
+  state._toastTimer = setTimeout(() => el.classList.add("hidden"), 4500);
+}
+
+function pushActivity(text, kind = "info") {
+  const colors = { info: "#94a3b8", success: "#34d399", warning: "#fbbf24", error: "#f87171", purple: "#a78bfa" };
+  state.activityEvents.unshift({ text, kind, ts: Date.now() });
+  state.activityEvents = state.activityEvents.slice(0, 30);
+  $("activityFeed").innerHTML = state.activityEvents.map(e => `
+    <div class="activity-item">
+      <div class="activity-dot" style="color:${colors[e.kind] || colors.info};background:${colors[e.kind] || colors.info}"></div>
+      <div class="flex-1 min-w-0">
+        <div class="text-xs text-slate-300 leading-snug">${e.text}</div>
+        <div class="text-[10px] text-slate-600 mt-0.5 font-mono">${new Date(e.ts).toLocaleTimeString([], {hour12: false})}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+async function api(path, options = {}) {
+  const opts = Object.assign({ headers: {} }, options);
+  if (opts.body && typeof opts.body !== "string") {
+    opts.headers["Content-Type"] = "application/json";
+    opts.body = JSON.stringify(opts.body);
+  }
+  const res = await fetch(path, opts);
+  if (!res.ok) throw new Error(`${path}: ${res.status}`);
+  return res.json();
+}
+
+// ============================================================================
+// Guided steps
+// ============================================================================
+const STEPS = [
+  { n:1, title:"Register the demo scraper", body:"MetroKart is a fictional storefront with 20 products. Registering stores its baseline (v1) strategy and starts monitoring.", cta:"Register MetroKart", color:"btn-primary", icon:"i-play", handler:doRegister, hint:"One click. Nothing else configured." },
+  { n:2, title:"Run against the healthy website", body:"Fetches page 1, extracts 10 products, computes a health score. Everything comes back green.", cta:"Run — healthy layout", color:"btn-primary", icon:"i-play", handler:doRunHealthy, hint:"Expected: health = 100%, status = healthy." },
+  { n:3, title:"Simulate a website redesign", body:"Real sites rename classes overnight. This flips the served HTML to a broken layout (v3_dataattr — classes replaced with data-testid).", cta:"Break the website", color:"btn-warning", icon:"i-alert", handler:doBreak, hint:"Nothing crashes yet — but the next run will find the DOM has changed." },
+  { n:4, title:"Trigger self-healing", body:"Health collapses. The engine generates candidates from six sources, scores each against the golden dataset, and promotes the winner — before your next click.", cta:"Run & heal", color:"btn-purple", icon:"i-heal", handler:doRunBroken, hint:"Watch the activity feed on the right fill up in real time." },
+  { n:5, title:"Inspect the repair", body:"See the old selector, every candidate WebMedic considered, its per-component score, and the winner promoted to v2.", cta:"Show candidates", color:"btn-blue", icon:"i-eye", handler:doInspect, hint:"AI proposes. Evidence decides. Both sides visible." },
+  { n:6, title:"Roll back the repair", body:"Every repair is versioned. Rollback flips current_version and keeps both v1 and v2 in the audit trail.", cta:"Roll back to v1", color:"btn-danger", icon:"i-rotate", handler:doRollback, hint:"Start over anytime with the reset button below." },
+  { n:7, title:"That's the whole loop.", body:"Detect → generate → score → deploy → verify → rollback. Every metric reproducible via python -m benchmark.harness.", cta:"Start over", color:"btn-ghost", icon:"i-rotate", handler:resetDemo, hint:"Thanks for watching." },
+];
+
+function renderStep() {
+  const s = STEPS[state.step - 1];
+  if (!s) return;
+  $("stepCounter").textContent = Math.min(state.step, 6);
+  for (let i = 1; i <= 6; i++) {
+    const dot = $(`dot-${i}`);
+    dot.classList.remove("done", "active");
+    if (i < state.step) { dot.classList.add("done"); dot.innerHTML = `<svg width="14" height="14"><use href="#i-check"/></svg>`; }
+    else if (i === state.step) { dot.classList.add("active"); dot.textContent = i; }
+    else { dot.textContent = i; }
+  }
+  for (let i = 1; i <= 5; i++) $(`line-${i}`).classList.toggle("done", i < state.step);
+  $("stepContent").innerHTML = `
+    <div class="max-w-xl">
+      <div class="text-xl font-bold text-white mb-2 tracking-tight">${s.title}</div>
+      <div class="text-sm text-slate-400 leading-relaxed">${s.body}</div>
+      <button id="stepCta" class="btn ${s.color} btn-lg mt-6">
+        <svg width="16" height="16"><use href="#${s.icon}"/></svg>
+        ${s.cta}
+      </button>
+      <div class="text-[11px] text-slate-500 mt-3 italic">${s.hint}</div>
+    </div>
+  `;
+  $("stepCta").addEventListener("click", s.handler);
+}
+
+// ============================================================================
+// Metrics
+// ============================================================================
+function renderMetrics(scraper, runs, repairs) {
+  const health = scraper?.health_score ?? null;
+  const healthPct = health != null ? (health * 100).toFixed(1) : "—";
+  const healthColor = !scraper ? "text-slate-500"
+    : scraper.status === "healthy" ? "text-emerald-400"
+    : scraper.status === "warning" ? "text-amber-400"
+    : "text-red-400";
+  const version = scraper?.current_version ?? "—";
+  const promoted = repairs?.filter(e => e.action === "promote").length ?? 0;
+  const healthySeries = (runs || []).slice(0, 12).reverse().map(r => r.health_score);
+  $("metricsGrid").innerHTML = `
+    <div class="card p-5 metric-card">
+      <div class="metric-label">Health score</div>
+      <div class="metric-value ${healthColor}">${healthPct}<span class="text-xl text-slate-500 ml-1">%</span></div>
+      <div class="metric-sub">${scraper ? statusPill(scraper.status) : "<span class='pill pill-neutral'>idle</span>"}</div>
+      <div class="mt-3">${sparkline(healthySeries)}</div>
+    </div>
+    <div class="card p-5 metric-card">
+      <div class="metric-label">Active version</div>
+      <div class="metric-value text-emerald-300 mono">v${version}</div>
+      <div class="metric-sub">${scraper ? "last update " + fmtWhen(scraper.updated_at) : "not registered"}</div>
+    </div>
+    <div class="card p-5 metric-card">
+      <div class="metric-label">Repairs deployed</div>
+      <div class="metric-value text-violet-300">${promoted}<span class="text-xl text-slate-500 ml-1">/${repairs?.length ?? 0}</span></div>
+      <div class="metric-sub">${repairs?.length ? "auto-healed" : "no repairs yet"}</div>
+    </div>
+  `;
+}
+
+function sparkline(data) {
+  if (!data || data.length < 2) return `<div class="text-[10px] text-slate-600 h-8 flex items-center">—</div>`;
+  const w = 200, h = 32;
+  const max = Math.max(1, ...data), min = Math.min(0, ...data);
+  const range = max - min || 1;
+  const pts = data.map((v, i) => `${(i/(data.length-1))*w},${h - ((v-min)/range)*h}`).join(" ");
+  return `<svg width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"><polyline class="sparkline" points="${pts}"/></svg>`;
+}
+
+function statusPill(s) {
+  const cls = ({ healthy:"pill-healthy", warning:"pill-warning", repair_required:"pill-repair" })[s] || "pill-neutral";
+  return `<span class="pill ${cls}">${s || "unknown"}</span>`;
+}
+function actionPill(a) {
+  const cls = ({ promote:"pill-healthy", shadow:"pill-shadow", reject:"pill-repair", rollback:"pill-warning", no_change:"pill-neutral" })[a] || "pill-neutral";
+  return `<span class="pill ${cls}">${a}</span>`;
+}
+function renderSelector(sel) {
+  if (!sel) return "<span class='text-slate-600'>—</span>";
+  const attr = sel.attr ? ` @${sel.attr}` : "";
+  return `<code class="text-amber-300 mono text-[11px]">${sel.kind}(${sel.value || ""})${attr}</code>`;
+}
+function scoreBar(score) {
+  const pct = (score * 100).toFixed(0);
+  const color = score >= 0.9 ? "#34d399" : score >= 0.75 ? "#60a5fa" : score >= 0.6 ? "#fbbf24" : "#f87171";
+  return `<div class="inline-flex items-center gap-1.5">
+    <div class="w-14 h-1.5 bg-white/5 rounded-full overflow-hidden"><div class="h-full" style="width:${pct}%; background:${color}"></div></div>
+    <span class="text-[10px] text-slate-400 font-mono w-8 text-right">${pct}%</span>
+  </div>`;
+}
+
+// ============================================================================
+// Panels
+// ============================================================================
+function renderRuns(runs) {
+  const list = $("runsList");
+  if (!runs?.length) { list.innerHTML = `<div class="text-xs text-slate-500 text-center py-4">—</div>`; return; }
+  list.innerHTML = runs.slice(0, 5).map(r => `
+    <div class="flex items-center justify-between text-xs py-1.5 border-b border-white/5 last:border-0">
+      <div class="flex items-center gap-2">
+        <span class="mono text-slate-500 text-[10px]">${fmtWhen(r.timestamp)}</span>
+        <span class="pill pill-neutral text-[10px]">v${r.version}</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-slate-400 mono text-[11px]">${r.records_received}/${r.records_expected ?? "?"}</span>
+        <span class="mono text-[11px] ${r.health_score >= 0.9 ? 'text-emerald-400' : r.health_score >= 0.7 ? 'text-amber-400' : 'text-red-400'}">${(r.health_score*100).toFixed(0)}%</span>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderRepairs(events) {
+  const list = $("repairsList");
+  if (!events.length) { list.innerHTML = `<div class="text-center py-8 text-xs text-slate-600">No repairs yet.</div>`; return; }
+  list.innerHTML = events.map(ev => `
+    <div class="card p-4 cursor-pointer transition-all hover:border-emerald-500/40" data-eventid="${ev.id}">
+      <div class="flex items-start justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 flex items-center justify-center text-violet-400">
+            <svg width="16" height="16"><use href="#i-heal"/></svg>
+          </div>
+          <div>
+            <div class="text-sm font-bold text-white flex items-center gap-2">
+              <span class="mono text-emerald-300">v${ev.old_version}</span>
+              <svg width="14" height="14" class="text-slate-500"><use href="#i-arrow-right"/></svg>
+              <span class="mono text-emerald-300">${ev.new_version ? "v"+ev.new_version : "—"}</span>
+            </div>
+            <div class="text-[11px] text-slate-500 mt-1">${ev.candidate_count} candidates · <span class="text-slate-300 mono">${(ev.confidence*100).toFixed(0)}% conf</span></div>
+          </div>
+        </div>
+        <div class="text-right">
+          ${actionPill(ev.action)}
+          <div class="text-[10px] text-slate-600 mt-1 mono">${fmtWhen(ev.timestamp)}</div>
+        </div>
+      </div>
+      <div class="text-[11px] text-slate-500 mt-3 pt-3 border-t border-white/5 italic">${ev.failure_reason || "—"}</div>
+      <div class="event-detail hidden mt-4 pt-4 border-t border-white/5"></div>
+    </div>
+  `).join("");
+  document.querySelectorAll("#repairsList [data-eventid]").forEach(card => {
+    card.addEventListener("click", async () => {
+      const eid = card.getAttribute("data-eventid");
+      const box = card.querySelector(".event-detail");
+      if (!box.classList.contains("hidden")) { box.classList.add("hidden"); return; }
+      box.classList.remove("hidden");
+      box.innerHTML = `<div class="text-xs text-slate-500">Loading…</div>`;
+      try {
+        const full = await api(`/api/scrapers/${state.scraperId}/repair-events/${eid}`);
+        box.innerHTML = renderRepairEventDetail(full);
+      } catch (e) { box.innerHTML = `<div class="text-xs text-red-400">${e.message}</div>`; }
+    });
+  });
+}
+
+function renderRepairEventDetail(ev) {
+  // ev has: plan, selected_candidate, action, old_version, new_version, confidence, failure_reason, candidate_count
+  const plan = ev.plan;
+  if (!plan) return `<div class="text-xs text-slate-500">No plan stored.</div>`;
+
+  // Rollback events carry a different plan shape: {kind:"rollback", from, to, reason}.
+  // They have no field_repairs (nothing was repaired — the scraper was reverted).
+  if (plan.kind === "rollback" || ev.action === "rollback" || !plan.field_repairs) {
+    const from = plan.from ?? ev.old_version ?? "?";
+    const to   = plan.to   ?? ev.new_version ?? "?";
+    const reason = plan.reason || ev.failure_reason || "manual rollback";
+    return `
+      <div class="text-[10px] uppercase text-slate-500 font-bold tracking-widest mb-1">Rollback</div>
+      <div class="text-xs text-slate-300 mb-3">
+        Reverted from <span class="mono text-white">v${from}</span> to
+        <span class="mono text-emerald-400">v${to}</span>.
+      </div>
+      <div class="text-[10px] uppercase text-slate-500 font-bold tracking-widest mb-1">Reason</div>
+      <div class="text-xs text-slate-400 italic">${reason}</div>
+      <div class="text-[10px] text-slate-600 mt-4">
+        Rollback events don't carry field-level repair candidates —
+        they revert to a known-good version.
+      </div>
+    `;
+  }
+
+  const blocks = Object.entries(plan.field_repairs || {}).map(([field, fr]) => {
+    const cands = (fr.top_candidates || []).slice(0, 5).map(c => {
+      const isWinner = fr.winner && c.selector.value === fr.winner.selector.value && c.selector.kind === fr.winner.selector.kind;
+      const star = isWinner ? '<svg width="12" height="12" class="text-emerald-400"><use href="#i-check"/></svg>' : '<span class="text-slate-600">·</span>';
+      return `<tr class="border-t border-white/5">
+        <td class="py-1 pr-1 w-4">${star}</td>
+        <td class="pr-2">${renderSelector(c.selector)}</td>
+        <td class="pr-2 text-[10px] text-slate-500 mono">${c.source}</td>
+        <td class="pr-2">${scoreBar(c.score.total)}</td>
+      </tr>`;
+    }).join("");
+    const gateColor = fr.action === "promote" ? "text-emerald-400" : fr.action === "shadow" ? "text-blue-400" : "text-red-400";
+    return `<div class="card p-3 mb-2">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-sm font-bold text-white mono">${field}</span>
+        <span class="text-xs font-bold ${gateColor} mono">${fr.action}</span>
+      </div>
+      <div class="text-[11px] text-slate-500 mb-1">was: ${renderSelector(fr.old_selector)}</div>
+      <div class="text-[10px] text-slate-500 italic mb-2">gate: ${fr.reason}</div>
+      <table class="w-full text-xs">${cands}</table>
+    </div>`;
+  }).join("");
+  return `
+    <div class="text-[10px] uppercase text-slate-500 font-bold tracking-widest mb-1">Failure signals</div>
+    <div class="text-xs text-slate-300 mb-3 mono">${ev.failure_reason || "—"}</div>
+    <div class="text-[10px] uppercase text-slate-500 font-bold tracking-widest mb-2">Per-field repair · ${Object.keys(plan.field_repairs || {}).length} fields</div>
+    ${blocks}
+  `;
+}
+
+function renderVersions(versions) {
+  $("versionsList").innerHTML = versions.length ? versions.map((v, i) => {
+    const isCurrent = i === versions.length - 1;
+    return `<li class="flex items-start gap-3">
+      <div class="w-7 h-7 rounded-full ${isCurrent ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-white/5 text-slate-500 border border-white/10'} flex items-center justify-center text-[10px] font-bold mono shrink-0 mt-0.5">v${v.version}</div>
+      <div class="flex-1 min-w-0">
+        <div class="text-xs text-slate-300 truncate">${v.reason}</div>
+        <div class="text-[10px] text-slate-600 mt-0.5 mono">${(v.confidence*100).toFixed(0)}% conf · ${fmtWhen(v.created_at)}</div>
+      </div>
+    </li>`;
+  }).join("") : `<li class="text-slate-500 text-xs">No versions yet.</li>`;
+}
+
+async function renderPreview() {
+  if (!state.scraperId) return;
+  try {
+    const p = await api(`/api/scrapers/${state.scraperId}/preview?limit=6`);
+    $("previewCount").textContent = `${p.count} records · layout ${p.fixture_version}`;
+    $("previewBody").innerHTML = (p.records || []).map(r => `
+      <tr class="border-t border-white/5">
+        <td class="py-2 text-slate-300">${r.product_name ?? "<span class='text-red-400 mono'>null</span>"}</td>
+        <td class="px-2 text-right mono ${r.price != null ? 'text-slate-300' : 'text-red-400'}">${r.price != null ? r.price.toFixed(0) + " " + (r.currency ?? "") : "—"}</td>
+        <td class="px-2 text-right mono text-slate-400">${r.rating ?? "—"}</td>
+        <td class="px-2 text-right mono text-slate-400">${r.review_count ?? "—"}</td>
+        <td class="px-2 text-slate-400">${r.availability ?? "<span class='text-red-400'>—</span>"}</td>
+      </tr>
+    `).join("");
+  } catch {}
+}
+
+async function renderStrategy(scraper) {
+  if (!scraper) return;
+  try {
+    const strat = await api(`/api/scrapers/${state.scraperId}/versions/${scraper.current_version}`);
+    const lines = Object.entries(strat.fields).map(([f, sel]) => {
+      const attr = sel.attr ? ` @${sel.attr}` : "";
+      return `<span class="text-slate-500">${f.padEnd(14)}</span> <span class="text-amber-300">${sel.kind}</span>(<span class="text-emerald-300">${sel.value || ""}</span>)${attr}`;
+    }).join("\n");
+    $("strategyBox").innerHTML = lines;
+  } catch {}
+}
+
+// ============================================================================
+// Refresh
+// ============================================================================
+async function refreshAll() {
+  try {
+    const health = await api("/api/health");
+    if (!state.fixtures.length) {
+      state.fixtures = await api("/api/fixtures");
+      const sel = $("fixtureSelect");
+      sel.innerHTML = "";
+      state.fixtures.forEach(v => {
+        const o = document.createElement("option");
+        o.value = v; o.textContent = v; sel.appendChild(o);
+      });
+      sel.value = state.lastFixture;
+    }
+    const scrapers = await api("/api/scrapers");
+    if (!scrapers.length) { renderMetrics(null, [], []); return; }
+    state.scraperId = scrapers[0].id;
+    const detail = await api(`/api/scrapers/${state.scraperId}`);
+    renderMetrics(detail.scraper, detail.runs, detail.repair_events);
+    renderRuns(detail.runs);
+    renderVersions(detail.versions);
+    renderRepairs(detail.repair_events);
+    await renderPreview();
+    await renderStrategy(detail.scraper);
+  } catch (e) { console.error(e); }
+}
+
+// ============================================================================
+// Step handlers
+// ============================================================================
+async function doRegister() {
+  try {
+    pushActivity("Registering MetroKart scraper…", "info");
+    await api("/api/scrapers", { method: "POST", body: { name: "metrokart", target_url: "http://127.0.0.1:8765/list?page=1" } });
+    pushActivity("Scraper registered — v1 baseline stored", "success");
+    toast("MetroKart registered.", "success");
+    state.step = 2;
+    await refreshAll(); renderStep();
+  } catch (e) { toast(e.message, "error"); }
+}
+async function doRunHealthy() {
+  try {
+    pushActivity("Fetching healthy layout page 1…", "info");
+    const out = await api(`/api/scrapers/${state.scraperId}/run`, { method: "POST", body: { fixture_version: "v1_healthy", expected: 10 } });
+    state.lastFixture = "v1_healthy";
+    pushActivity(`Extracted ${out.health.records_received}/10 records — health ${(out.health.health_score*100).toFixed(0)}%`, "success");
+    toast(`Healthy: ${out.health.records_received} records at ${(out.health.health_score*100).toFixed(0)}%.`, "success");
+    state.step = 3;
+    await refreshAll(); renderStep();
+  } catch (e) { toast(e.message, "error"); }
+}
+async function doBreak() {
+  try {
+    await api(`/api/scrapers/${state.scraperId}/switch_fixture`, { method: "POST", body: { version: state.brokeFixture } });
+    state.lastFixture = state.brokeFixture;
+    pushActivity(`Website flipped to layout "${state.brokeFixture}"`, "warning");
+    toast(`Website switched. Next run will detect the breakage.`, "warning");
+    state.step = 4;
+    await refreshAll(); renderStep();
+  } catch (e) { toast(e.message, "error"); }
+}
+async function doRunBroken() {
+  try {
+    pushActivity("Running scraper on broken layout…", "info");
+    const out = await api(`/api/scrapers/${state.scraperId}/run`, { method: "POST", body: { expected: 10 } });
+    const d = out.decision;
+    pushActivity(`Health dropped to ${(d.pre_health*100).toFixed(0)}%`, "error");
+    if (d.action === "promote") {
+      pushActivity(`Generated candidates for ${Object.keys(out.health.violations_by_field || {}).length} broken fields`, "purple");
+      pushActivity(`Winner promoted at ${(d.confidence*100).toFixed(0)}% confidence — v${d.old_version} → v${d.new_version}`, "purple");
+      pushActivity(`Shadow gate passed. Post-heal health ${(d.post_health*100).toFixed(0)}%`, "success");
+      toast(`Self-heal complete. v${d.old_version} → v${d.new_version} at ${(d.confidence*100).toFixed(0)}%.`, "success");
+    } else {
+      pushActivity(`Gate: ${d.action} — ${d.reason}`, "warning");
+      toast(`Repair ${d.action}: ${d.reason}`, "warning");
+    }
+    state.step = 5;
+    await refreshAll(); renderStep();
+  } catch (e) { toast(e.message, "error"); }
+}
+async function doInspect() {
+  const events = await api(`/api/scrapers/${state.scraperId}/repair-events`);
+  if (!events.length) { toast("No repair events yet.", "warning"); return; }
+  const firstCard = document.querySelector("#repairsList [data-eventid]");
+  if (firstCard) {
+    firstCard.click();
+    firstCard.scrollIntoView({ behavior: "smooth", block: "center" });
+    pushActivity("Repair event expanded — see candidates + scores below", "info");
+    toast("Scroll down — every broken field shows 5 ranked candidates.", "success");
+  }
+  state.step = 6;
+  renderStep();
+}
+async function doRollback() {
+  try {
+    await api(`/api/scrapers/${state.scraperId}/rollback`, { method: "POST", body: { to_version: 1, reason: "rolled back via guided demo" } });
+    pushActivity("Rolled back to v1 — audit trail preserved", "warning");
+    toast("Rolled back to v1.", "warning");
+    state.step = 7;
+    await refreshAll(); renderStep();
+  } catch (e) { toast(e.message, "error"); }
+}
+async function resetDemo() {
+  state.step = 1; state.scraperId = null; state.lastFixture = "v1_healthy"; state.activityEvents = [];
+  $("activityFeed").innerHTML = `<div class="text-xs text-slate-600 text-center py-12">Activity will appear here as you click through the demo.</div>`;
+  await refreshAll(); renderStep();
+  toast("Demo reset — start again from step 1.", "success");
+}
+
+// ============================================================================
+// Command palette
+// ============================================================================
+const COMMANDS = [
+  { label: "Register MetroKart", shortcut: "R", icon: "i-play", action: doRegister },
+  { label: "Run scraper", shortcut: "Space", icon: "i-play", action: () => $("btnRun")?.click() },
+  { label: "Simulate site change", shortcut: "S", icon: "i-alert", action: doBreak },
+  { label: "Run & self-heal", shortcut: "H", icon: "i-heal", action: doRunBroken },
+  { label: "Show candidates", shortcut: "I", icon: "i-eye", action: doInspect },
+  { label: "Rollback to v1", shortcut: "U", icon: "i-rotate", action: doRollback },
+  { label: "Reset demo", shortcut: "Shift+R", icon: "i-rotate", action: resetDemo },
+  { label: "Refresh view", shortcut: "F5", icon: "i-rotate", action: refreshAll },
+];
+function openCmd() {
+  const p = $("cmdPalette");
+  p.classList.remove("hidden");
+  p.setAttribute("aria-hidden", "false");
+  $("cmdInput").value = "";
+  renderCmdList("");
+  setTimeout(() => $("cmdInput").focus(), 10);
+}
+function closeCmd() {
+  const p = $("cmdPalette");
+  p.classList.add("hidden");
+  p.setAttribute("aria-hidden", "true");
+  $("btnCommandPalette")?.focus();
+}
+function renderCmdList(query) {
+  const q = query.toLowerCase();
+  const items = COMMANDS.filter(c => c.label.toLowerCase().includes(q));
+  $("cmdList").innerHTML = items.map((c, i) => `
+    <div class="cmd-item ${i === 0 ? 'selected' : ''}" data-idx="${COMMANDS.indexOf(c)}">
+      <svg width="14" height="14" class="text-slate-500"><use href="#${c.icon}"/></svg>
+      <div class="flex-1">${c.label}</div>
+      <span class="kbd">${c.shortcut}</span>
+    </div>
+  `).join("") || `<div class="p-4 text-center text-xs text-slate-500">No matches.</div>`;
+  document.querySelectorAll(".cmd-item").forEach(el => {
+    el.addEventListener("click", () => { closeCmd(); COMMANDS[parseInt(el.getAttribute("data-idx"))].action(); });
+  });
+}
+$("cmdInput")?.addEventListener("input", e => renderCmdList(e.target.value));
+$("cmdInput")?.addEventListener("keydown", e => {
+  if (e.key === "Enter") { const s = document.querySelector(".cmd-item.selected"); if (s) s.click(); }
+  else if (e.key === "Escape") closeCmd();
+});
+$("btnCommandPalette")?.addEventListener("click", openCmd);
+$("cmdPalette")?.addEventListener("click", e => { if (e.target.id === "cmdPalette") closeCmd(); });
+document.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); openCmd(); }
+  if (e.key === "Escape") closeCmd();
+});
+
+// ============================================================================
+// Expert controls
+// ============================================================================
+$("btnRun")?.addEventListener("click", async () => {
+  if (!state.scraperId) { toast("Register the scraper first.", "warning"); return; }
+  const v = $("fixtureSelect").value; state.lastFixture = v;
+  try {
+    const out = await api(`/api/scrapers/${state.scraperId}/run`, { method: "POST", body: { fixture_version: v, expected: 10 } });
+    const d = out.decision;
+    toast(`Run: ${d.action} · pre ${(d.pre_health*100).toFixed(0)}% → post ${d.post_health != null ? (d.post_health*100).toFixed(0)+'%' : '—'}`, d.action === "promote" ? "success" : "warning");
+    pushActivity(`Manual run on ${v}: ${d.action}`, d.action === "promote" ? "success" : "info");
+    await refreshAll();
+  } catch (e) { toast(e.message, "error"); }
+});
+$("btnSwitch")?.addEventListener("click", async () => {
+  if (!state.scraperId) return;
+  const v = $("fixtureSelect").value;
+  await api(`/api/scrapers/${state.scraperId}/switch_fixture`, { method: "POST", body: { version: v } });
+  state.lastFixture = v;
+  pushActivity(`Manual switch to ${v}`, "warning");
+  toast(`Serving layout: ${v}`, "warning");
+  await refreshAll();
+});
+$("btnRollback")?.addEventListener("click", async () => {
+  if (!state.scraperId) return;
+  await api(`/api/scrapers/${state.scraperId}/rollback`, { method: "POST", body: { to_version: 1, reason: "manual rollback" } });
+  pushActivity("Manual rollback to v1", "warning");
+  toast("Rolled back to v1.", "warning");
+  await refreshAll();
+});
+$("btnRefresh")?.addEventListener("click", refreshAll);
+$("btnReset")?.addEventListener("click", resetDemo);
+
+// ============================================================================
+// Bootstrap
+// ============================================================================
+(async function() { await refreshAll(); renderStep(); })();
+</script>
+</body>
+</html>

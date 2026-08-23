@@ -1,0 +1,68 @@
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 0 — Baseline (v1_healthy)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  health_score             1.000
+  status                   healthy
+  records                  10/10
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1 — Website change → serving layout 'v9_combined'
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — Broken run + failure detection
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  health_score             0.662
+  status                   repair_required
+  failure_signals          field_widely_broken:price=1.00
+  null_rates (>0)          {'price': 1.0}
+  detection.severity       critical
+  detection.confidence     1.00
+  detection.reason         health=0.66 (repair_required); newly broken: price
+  newly_broken_fields      ['price']
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 3 — Candidate generation (per broken field)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  price  → 5 candidates evaluated
+    ★ 1. css         span.cost                           [class-synonym]  score= 92.5% (schema=1.00 comp=1.00 type=1.00 sim=1.00)
+      2. css         span:nth-of-type(1)                 [positional]  score= 92.5% (schema=1.00 comp=1.00 type=1.00 sim=1.00)
+      3. css         .cost                               [class-synonym]  score= 77.5% (schema=1.00 comp=1.00 type=1.00 sim=0.00)
+      4. css         div:nth-of-type(1)                  [positional]  score= 77.5% (schema=1.00 comp=1.00 type=1.00 sim=0.00)
+      5. css         div:nth-of-type(2)                  [positional]  score= 14.5% (schema=0.10 comp=0.10 type=0.10 sim=0.00)
+    action=promote  reason=score 0.93 >= promote threshold 0.9
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 4 — Gate decision + shadow run
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  gate action              promote
+  gate reason              shadow health 1.00 passes gate
+  proposed_confidence      92.5%
+  pre_health / post_health 66.2% → 100.0%
+  new_version              2
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 5 — Recovered records (top 5)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    Aurora Wireless Headphones      8999.0 INR       4.5/5 · 1284 reviews · In Stock
+    NovaSphere Bluetooth Speaker    2499.0 INR       4.2/5 · 843 reviews · In Stock
+    QuantumFit Smartwatch           12999.0 INR      4.6/5 · 3421 reviews · In Stock
+    StellarBeam LED Desk Lamp       1499.0 INR       4.3/5 · 512 reviews · In Stock
+    PixelGrid 4K Monitor 27"        24999.0 INR      4.7/5 · 2140 reviews · In Stock
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 6 — DB evidence
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  scrapers.current_version 2
+  scrapers.health_score    100.0%
+  scrapers.status          healthy
+  scraper_versions:
+    v1   initial registration                                          conf=100.0%
+    v2   field_widely_broken:price=1.00                                conf=92.5%
+  repair_events:
+    id=1  promote    v1→v2  conf=92.5%  field_widely_broken:price=1.00
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DONE — AI proposed. Evidence decided. Deployment versioned. Rollback available.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

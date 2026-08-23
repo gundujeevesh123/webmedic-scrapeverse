@@ -1,0 +1,227 @@
+{
+  "site": "MetroKart (fictional demo storefront)",
+  "base_url": "http://127.0.0.1:8765",
+  "notes": "Golden dataset used to score extraction and repair. Any candidate must match these fields per record. All records are synthetic; no real website is scraped.",
+  "records": [
+    {
+      "product_id": "MK-1001",
+      "product_name": "Aurora Wireless Headphones",
+      "price": 8999.0,
+      "currency": "INR",
+      "rating": 4.5,
+      "review_count": 1284,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1001",
+      "image_url": "http://127.0.0.1:8765/img/MK-1001.jpg"
+    },
+    {
+      "product_id": "MK-1002",
+      "product_name": "NovaSphere Bluetooth Speaker",
+      "price": 2499.0,
+      "currency": "INR",
+      "rating": 4.2,
+      "review_count": 843,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1002",
+      "image_url": "http://127.0.0.1:8765/img/MK-1002.jpg"
+    },
+    {
+      "product_id": "MK-1003",
+      "product_name": "QuantumFit Smartwatch",
+      "price": 12999.0,
+      "currency": "INR",
+      "rating": 4.6,
+      "review_count": 3421,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1003",
+      "image_url": "http://127.0.0.1:8765/img/MK-1003.jpg"
+    },
+    {
+      "product_id": "MK-1004",
+      "product_name": "StellarBeam LED Desk Lamp",
+      "price": 1499.0,
+      "currency": "INR",
+      "rating": 4.3,
+      "review_count": 512,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1004",
+      "image_url": "http://127.0.0.1:8765/img/MK-1004.jpg"
+    },
+    {
+      "product_id": "MK-1005",
+      "product_name": "PixelGrid 4K Monitor 27\"",
+      "price": 24999.0,
+      "currency": "INR",
+      "rating": 4.7,
+      "review_count": 2140,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1005",
+      "image_url": "http://127.0.0.1:8765/img/MK-1005.jpg"
+    },
+    {
+      "product_id": "MK-1006",
+      "product_name": "AeroDrift Mechanical Keyboard",
+      "price": 6499.0,
+      "currency": "INR",
+      "rating": 4.4,
+      "review_count": 987,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1006",
+      "image_url": "http://127.0.0.1:8765/img/MK-1006.jpg"
+    },
+    {
+      "product_id": "MK-1007",
+      "product_name": "VelvetSound Earbuds Pro",
+      "price": 3999.0,
+      "currency": "INR",
+      "rating": 4.1,
+      "review_count": 1502,
+      "availability": "Out of Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1007",
+      "image_url": "http://127.0.0.1:8765/img/MK-1007.jpg"
+    },
+    {
+      "product_id": "MK-1008",
+      "product_name": "LumaCore Ring Light",
+      "price": 1799.0,
+      "currency": "INR",
+      "rating": 4.0,
+      "review_count": 328,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1008",
+      "image_url": "http://127.0.0.1:8765/img/MK-1008.jpg"
+    },
+    {
+      "product_id": "MK-1009",
+      "product_name": "ThunderPulse Gaming Mouse",
+      "price": 2299.0,
+      "currency": "INR",
+      "rating": 4.5,
+      "review_count": 1876,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1009",
+      "image_url": "http://127.0.0.1:8765/img/MK-1009.jpg"
+    },
+    {
+      "product_id": "MK-1010",
+      "product_name": "EchoWave Studio Microphone",
+      "price": 5499.0,
+      "currency": "INR",
+      "rating": 4.6,
+      "review_count": 654,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1010",
+      "image_url": "http://127.0.0.1:8765/img/MK-1010.jpg"
+    },
+    {
+      "product_id": "MK-1011",
+      "product_name": "VividFrame Digital Photo Frame 10\"",
+      "price": 3799.0,
+      "currency": "INR",
+      "rating": 4.2,
+      "review_count": 219,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1011",
+      "image_url": "http://127.0.0.1:8765/img/MK-1011.jpg"
+    },
+    {
+      "product_id": "MK-1012",
+      "product_name": "ZenithFlow Water Bottle 1L",
+      "price": 799.0,
+      "currency": "INR",
+      "rating": 4.7,
+      "review_count": 3210,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1012",
+      "image_url": "http://127.0.0.1:8765/img/MK-1012.jpg"
+    },
+    {
+      "product_id": "MK-1013",
+      "product_name": "GraphiteEdge Notebook Stand",
+      "price": 1299.0,
+      "currency": "INR",
+      "rating": 4.4,
+      "review_count": 421,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1013",
+      "image_url": "http://127.0.0.1:8765/img/MK-1013.jpg"
+    },
+    {
+      "product_id": "MK-1014",
+      "product_name": "HelixCharge 65W GaN Adapter",
+      "price": 2199.0,
+      "currency": "INR",
+      "rating": 4.5,
+      "review_count": 1089,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1014",
+      "image_url": "http://127.0.0.1:8765/img/MK-1014.jpg"
+    },
+    {
+      "product_id": "MK-1015",
+      "product_name": "CrystalView Webcam 1080p",
+      "price": 2799.0,
+      "currency": "INR",
+      "rating": 4.1,
+      "review_count": 762,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1015",
+      "image_url": "http://127.0.0.1:8765/img/MK-1015.jpg"
+    },
+    {
+      "product_id": "MK-1016",
+      "product_name": "TitanGrip Phone Holder",
+      "price": 599.0,
+      "currency": "INR",
+      "rating": 4.3,
+      "review_count": 1544,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1016",
+      "image_url": "http://127.0.0.1:8765/img/MK-1016.jpg"
+    },
+    {
+      "product_id": "MK-1017",
+      "product_name": "LucentGlow Smart Bulb (Pack of 4)",
+      "price": 1999.0,
+      "currency": "INR",
+      "rating": 4.4,
+      "review_count": 892,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1017",
+      "image_url": "http://127.0.0.1:8765/img/MK-1017.jpg"
+    },
+    {
+      "product_id": "MK-1018",
+      "product_name": "FlareFast USB-C Cable 2m",
+      "price": 449.0,
+      "currency": "INR",
+      "rating": 4.6,
+      "review_count": 5210,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1018",
+      "image_url": "http://127.0.0.1:8765/img/MK-1018.jpg"
+    },
+    {
+      "product_id": "MK-1019",
+      "product_name": "OrbitalLite Foldable Stand",
+      "price": 999.0,
+      "currency": "INR",
+      "rating": 4.2,
+      "review_count": 341,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1019",
+      "image_url": "http://127.0.0.1:8765/img/MK-1019.jpg"
+    },
+    {
+      "product_id": "MK-1020",
+      "product_name": "RipplePad Wireless Charger 15W",
+      "price": 1599.0,
+      "currency": "INR",
+      "rating": 4.3,
+      "review_count": 1128,
+      "availability": "In Stock",
+      "product_url": "http://127.0.0.1:8765/p/MK-1020",
+      "image_url": "http://127.0.0.1:8765/img/MK-1020.jpg"
+    }
+  ]
+}
