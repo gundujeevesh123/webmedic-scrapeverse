@@ -13,8 +13,11 @@
 >
 > **AI proposes. Evidence decides.**
 
-![WebMedic dashboard healing a broken selector](docs/generated/screens/dashboard_hero.png)
-*(capture the dashboard at `http://127.0.0.1:8000` after `uvicorn backend.api.app:app`)*
+![WebMedic dashboard — healthy state](outputs/dashboard_hero.png)
+
+| ![Healed state](outputs/healed_state.png) | ![Repair event drill-down](outputs/repair_event_expanded.png) |
+|:-:|:-:|
+| *Dashboard after a heal — health score back to green.* | *Repair event expanded — five candidates scored, one promoted.* |
 
 ## Quick start
 
